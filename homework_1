@@ -1,0 +1,65 @@
+;;1
+(define (day-of-week day month year)
+  (define (new-month month)
+    (if (< month 3)
+        (+ month 10)
+        (- month 2)))
+  (define (new-year month year)
+    (if (< month 3)
+        (- year 1)
+        year))
+  (remainder (+ day (quotient (* 31 (new-month month)) 12) (new-year month year) (quotient (new-year month year) 4)
+                (* -1 (quotient (new-year month year) 100)) (quotient (new-year month year) 400)) 7))
+#|
+(day-of-week 04 12 1975) ⇒ 4
+(day-of-week 04 12 2006) ⇒ 1
+(day-of-week 29 05 2013) ⇒ 3
+|#
+;;2
+(define (roots-of-a-square-polynomial a b c)
+  (define (discriminant a b c)
+    (- (* b b) (* 4 a c)))
+  (if (= a b c 0)
+      (list #\R)
+      (if (= a b 0)
+          '()
+          (if (= a 0)
+              (list (- (/ c b)))
+              (if (< (discriminant a b c) 0)
+                  '()
+                  (if (= (discriminant a b c) 0)
+                      (list (- (/ b (* 2 a))))
+                      (list (/ (- (- b) (sqrt (discriminant a b c))) (* 2 a))
+                            (/ (+ (- b) (sqrt (discriminant a b c))) (* 2 a)))))))))
+#|
+(roots-of-a-square-polynomial 4 0 0)   ⇒ (0)
+(roots-of-a-square-polynomial 0 0 0)   ⇒ (#\R)
+(roots-of-a-square-polynomial 0 0 1)   ⇒ ()
+(roots-of-a-square-polynomial 0 1 1)   ⇒ (-1)
+(roots-of-a-square-polynomial 47 53 5) ⇒ (-1.023743964281219 -0.10391561018686626)
+|#
+;;3
+(define (my-gcd a b)
+  (if (= (remainder (max a b) (min a b)) 0)
+      (min a b)
+      (my-gcd (min a b) (remainder (max a b) (min a b)))))
+
+(define (my-lcm a b)
+  (/ (* a b) (my-gcd a b)))
+
+(define (prime? n)
+  (define (loop n divisor)
+    (if (< (sqrt n) divisor)
+        #t
+        (if (= (remainder n divisor) 0)
+            #f
+            (loop n (+ divisor 1)))))
+  (loop (abs n) 2))
+#|
+(my-gcd 3542 2464) ⇒ 154
+(my-lcm 3 4)       ⇒  12
+(prime? 11)        ⇒  #t
+(prime? 12)        ⇒  #f
+(prime? -11)       ⇒ #t
+(prime? -10)       ⇒ #f
+|#
