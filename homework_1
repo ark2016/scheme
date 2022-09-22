@@ -54,12 +54,15 @@
         (if (= (remainder n divisor) 0)
             #f
             (loop n (+ divisor 1)))))
-  (loop (abs n) 2))
-#|
+  (if (<= n 1)
+      #f
+      (loop n 2)))
+  #|
 (my-gcd 3542 2464) ⇒ 154
 (my-lcm 3 4)       ⇒  12
 (prime? 11)        ⇒  #t
 (prime? 12)        ⇒  #f
-(prime? -11)       ⇒ #t
+(prime? -11)       ⇒ #f
 (prime? -10)       ⇒ #f
+(prime? 0)         ⇒ #f
 |#
