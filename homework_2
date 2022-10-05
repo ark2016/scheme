@@ -1,0 +1,25 @@
+;;1. Обработка списков
+(define (my-range a b d)
+  (define (loop a b d res x)
+    (if (or (and (>= a (- b d)) (> d 0)) (and (<= a (- b d)) (< d 0)))
+        res
+        (loop (+ a d) b d (append res (list (+ x d))) (+ x d))))
+  (loop a b d (list a) a))
+;; нужно понять как сделать без х
+(define (my-flatten xs)
+  (define (loop part)
+    (if (list? (car part))
+        (loop  (car part))
+        (car part)))
+  (define (iter xs res)
+    (if (null? xs)
+        res
+        (iter (cdr xs) (append res (list (loop (car xs)))))))
+  (iter xs '()))
+#|
+после в 18 '()
+mcar: contract violation
+  expected: mpair?
+  given: 2
+> 
+|#
