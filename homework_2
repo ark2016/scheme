@@ -1,3 +1,12 @@
+(define-syntax trace-ex
+  (syntax-rules ()
+    ((trace-ex expr)
+     (begin (write 'expr)
+            (display " => ")
+            (let ((x expr))
+              (write x)
+              (newline)
+              x)))))
 ;;1. Обработка списков
 (define (my-range a b d)
   (define (loop a b d res x)
@@ -5,21 +14,152 @@
         res
         (loop (+ a d) b d (append res (list (+ x d))) (+ x d))))
   (loop a b d (list a) a))
-;; нужно понять как сделать без х
+;
 (define (my-flatten xs)
-  (define (loop part)
-    (if (list? (car part))
-        (loop  (car part))
-        (car part)))
+  (define (loop xs res)
+    (if (null? xs)
+        res
+        (if (list? (car xs))
+            (loop (car xs) res)
+            (loop (cdr xs) (append res (list (car xs)))))))
   (define (iter xs res)
     (if (null? xs)
         res
-        (iter (cdr xs) (append res (list (loop (car xs)))))))
+        (if (list? (car xs))
+            (iter (cdr xs) (loop xs res))
+            (iter (cdr xs) (append res (list (car xs)))))))
   (iter xs '()))
-#|
-после в 18 '()
-mcar: contract violation
-  expected: mpair?
-  given: 2
-> 
-|#
+;
+(define (my-element? x xs)
+  (if (null? xs)
+      (not (null? xs));#f
+      (if (equal? x (car xs))
+          (equal? x (car xs))
+          (my-element? x (cdr xs)))))
+;
+(define (my-filter pred? xs)
+  (define (loop pred? xs res)
+    (if (null? xs)
+        res
+        (if (pred? (car xs))
+            (loop pred? (cdr xs) (append res (list (car xs))))
+            (loop pred? (cdr xs) res))))
+  (loop pred? xs '()))
+;
+(define (my-fold-left op xs)
+  (define (loop op xs res)
+    (if (null? xs)
+        res
+        (loop op (cdr xs) (op res (car xs)))))
+  (if (null? xs)
+      xs
+      (if (= (length xs) 1)
+          (car xs)
+          (loop op (cdr xs) (car xs)))))
+;
+(define (my-fold-right op xs)
+  (my-fold-left op (reverse xs)))
+;;2. Множества
+(define (list->set xs)
+  (define (loop xs res)
+    (if (null? xs)
+        res
+        (if (my-element? (car xs) res)
+            (loop (cdr xs) res)
+            (loop (cdr xs) (append res (list (car xs)))))))
+  (loop xs '()))
+;
+(define (set? xs)
+  (equal? xs (list->set xs)))
+;
+(define (union xs ys)
+  (list->set (append xs ys)))
+  
+;
+(define (intersection xs ys)
+  (define (loop xs ys res)
+    (if (null? xs)
+        res
+        (if (my-element? (car xs) ys)
+            (loop (cdr xs) ys (append res (list (car xs))))
+            (loop (cdr xs) ys res))))
+  (loop xs ys '()))
+;
+(define (difference xs ys)
+  (define (loop xs ys res)
+    (if (null? xs)
+        res
+        (if (my-element? (car xs) ys)
+            (loop (cdr xs) ys res)
+            (loop (cdr xs) ys (append res (list (car xs)))))))
+  (loop xs ys '()))
+;
+(define (symmetric-difference xs ys)
+  (union (difference xs ys) (difference ys xs)))
+;
+(define (set-eq? xs ys)
+  (and (equal? xs (intersection xs ys)) (equal? xs (union xs ys))))
+;;3. Работа со строками
+(define (string-trim-left str)
+  (define (loop xs)
+    (if (char-alphabetic?(car xs))
+        (list->string xs)
+        (loop (cdr xs))))
+  (loop (string->list str)))
+;
+(define (string-trim-right str)
+  (define (loop xs)
+    (if (char-alphabetic?(car xs))
+        (list->string (reverse xs))
+        (loop (cdr xs))))
+  (loop (reverse (string->list str))))
+;
+(define (string-trim  str)
+  (string-trim-right (string-trim-left str)))
+;
+(define (string-prefix? a b)
+  (define (loop ax bx)
+    (if (null? bx)
+        (not (null? bx));#f
+        (if (null? ax)
+            (null? ax);#t
+            (if (equal? (car ax) (car bx))
+                (loop (cdr ax) (cdr bx))
+                (equal? (car ax) (car bx))))));#f
+  (loop (string->list a) (string->list b)))
+;
+(define (string-suffix? a b)
+  (define (loop ax bx)
+    (if (null? bx)
+        (not (null? bx));#f
+        (if (null? ax)
+            (null? ax);#t
+            (if (equal? (car ax) (car bx))
+                (loop (cdr ax) (cdr bx))
+                (equal? (car ax) (car bx))))));#f
+  (loop (reverse (string->list a)) (reverse (string->list b))))
+;
+(define (string-infix? a b)
+  (if (string-suffix? a b)
+      (string-suffix? a b)
+      (if (= (string-length b) 0)
+          (not (= (string-length b) 0));#f
+          (if (string-prefix? a b)
+              (string-prefix? a b)
+              (string-infix? a (list->string (cdr (string->list b))))))))
+;
+(define (string-split str sep)
+  (define (delete xs sep)
+    (if (null? sep)
+        (list->string xs)
+        (delete (cdr xs) (cdr sep))))
+  (define (loop str sep res sub-res)
+    (if (= (string-length str) 0)
+        (append res (list sub-res))
+        (if (string-prefix? sep str)
+            (loop (delete (string->list str) (string->list sep)) sep (append res (list sub-res)) "")
+            (loop (list->string (cdr (string->list str))) sep res (string-append sub-res (substring str 0 1))))))
+  (if (and (string-infix? sep str) (not (equal? sep "")))
+      (loop str sep '() "")
+      (list str)));#f
+;;4. Многомерные вектора
