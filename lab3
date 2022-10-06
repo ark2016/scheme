@@ -3,6 +3,11 @@
 (define(next)
   (set! counter (+ 1 counter))
   counter)
+(define (signum x)
+  (cond
+    ((< x 0) -1)
+    ((= x 0)  1) ; Ошибка здесь!
+    (else     1)))
 ;;1
 (define-syntax trace-ex
   (syntax-rules ()
@@ -14,6 +19,73 @@
               (newline)
               x)))))
 ;;2 run-test принимает только 1 переменную тест
+(define (run-test arr)
+  (let ((expr-res (eval (car arr) (interaction-environment)))
+        (value (car(cdr arr)))
+        (expr (car arr)))
+    (if (equal? expr-res value)
+        (begin
+          (write expr)
+          (display " ok")
+          (newline))
+        (begin
+          (write expr)
+          (display " FAIL")
+          (newline)
+          (display "  Expected:")
+          (write value)
+          (newline)
+          (display "  Returned:")
+          (write expr-res)
+          (newline)))
+    (equal? expr-res value)))
+(define (run-tests arr)
+  (or (null? arr)
+      (if (run-test (car arr))
+          (run-tests (cdr arr))
+          (begin
+            (run-tests (cdr arr))
+            #f))))
+(define-syntax test
+  (syntax-rules ()
+    ((test expr res)
+     (list (quote expr) res))))
+;;3
+(define (ref arg . index-new)
+  (define (transform-in-list arg)
+    (if (string? arg)
+        (string->list arg)
+        (if (vector? arg)
+            (vector->list arg)
+            arg)))
+  (define (func-list->type? arg)
+    (if (string? arg)
+        (string->list)
+        (if (vector? arg)
+            (vector->list)
+            (lambda (x . xs) (car(append (list x) xs))))))
+  (define (ref-1 xs index)
+    (if (> index (- (length xs) 1))
+        (< index (length xs));#f
+        (if (= index 0)
+            (car xs)
+            (ref-1 (cdr xs) (- index 1)))))
+  (define (ref-2 xs index replace list->old-type res)
+    (if (> index (- (length xs) 1))
+        (< index (length xs));#f
+        (if (= index 0)
+            (list->old-type (append res (list replace) (cdr xs)))
+            (ref-2 (cdr xs) (- index 1) replace list->old-type (append res (list (car xs)))))))
+  (if (and (not (list? arg)) (not (vector? arg)) (not (string? arg)))
+      (display "wrong input")
+      (if ( = (length index-new) 1)
+          (ref-1 (transform-in-list arg) (car index-new))
+          (if (pair? index-new)
+              (ref-2 (transform-in-list arg) (car index-new) (car (cdr index-new)) (func-list->type? arg) '())
+              (display "Wrong input")))))
+      
+      
+#|
 (define (if-mistake expr arg)
   (display "fail")
   (newline)
@@ -51,3 +123,4 @@
      (begin (if (list? args)
                 (run-tests expr (list args))
                 (run-test expr args))))))
+|#
