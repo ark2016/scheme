@@ -83,8 +83,7 @@
       (if ( = (length index-new) 1)
           (ref-1 (transform-in-list arg) (car index-new))
           (if (pair? index-new)
-              (if (not (or (and (list? arg) (number? (car (cdr index-new))))
-                           (and (string? arg) (char? (car (cdr index-new)))) (vector? arg)))
+              (if (not (or (list? arg) (and (string? arg) (char? (car (cdr index-new)))) (vector? arg)))
                   #f
                   (ref-2 (transform-in-list arg) (car index-new) (car (cdr index-new)) (func-list->type? arg) '()))
               #f))))
