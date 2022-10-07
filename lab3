@@ -83,7 +83,18 @@
           (if (pair? index-new)
               (ref-2 (transform-in-list arg) (car index-new) (car (cdr index-new)) (func-list->type? arg) '())
               (display "Wrong input")))))
-      
+;;4
+(define (factorize expr)
+  (define (loop signum power x y)
+    (if (equal? signum '+)
+        (list '+ (list 'expt x '3) (list '* '3  (list 'expt x '2) y)
+              (list '* '3 x (list 'expt y '2)) (list 'expt y '3))
+        (if (equal? power 2)
+            (list '* (list '- x y) (list '+ x y))
+            (list '+ (list 'expt x '3) (list '* '3  (list 'expt x '2) y '-1)
+                  (list '* '3 x (list 'expt y '2)) (list '* (list 'expt y '3) '-1)))))
+  (loop (car expr) (car (cddr (car(cddr expr)))) (car (cdr (car (cdr expr)))) (car (cdr(car (cddr expr))))))
+
       
 #|
 (define (if-mistake expr arg)
