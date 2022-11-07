@@ -68,16 +68,25 @@
         (if res
             (cadr res)
             (let ((res (t n)))
-                  (set! known-results (cons (list arg res) known-results))
-                  res))))))
+              (set! known-results (cons (list arg res) known-results))
+              res))))))
       
 (define (t n)
   (cond ((<= n 1) 0)
         ((= n 2) 1)
         (else (+ (t (- n 1)) (t (- n 2)) (t (- n 3))))))
 ;;4
-
 (define-syntax my-if
+  (syntax-rules ()
+    ((my-if condition one)
+     (let ((one-promise (delay one)))
+       (or (and condition (force one-promise)) "")))
+    ((my-if condition one two)
+     (let ((one-promise (delay one))
+           (two-promise (delay two)))
+       (or (and condition (force one-promise))(and (not condition) (force two-promise)))))))
+
+(define-syntax my-if*
   (syntax-rules ()
     ((my-if condition one)
      (or (and condition one) " "))
@@ -85,14 +94,74 @@
      (or (and condition one)(and (not condition) two)))))
 
 ;;5
-
+#|
+(define-syntax let1
+  (syntax-rules ()
+    ((let1 ((var val)) expr)
+     ((lambda (var) expr) val))))
+|#
+#|
+(define-syntax let
+  (syntax-rules ()
+    ((let ((name val) ...) body1 body2 ...)
+     ((lambda (name ...) body1 body2 ...)
+      val ...))
+    ((let tag ((name val) ...) body1 body2 ...)
+     ((letrec ((tag (lambda (name ...)
+                      body1 body2 ...)))
+        tag)
+      val ...))))
+|#
+(define-syntax my-let
+  (syntax-rules ()
+    ((my-let ((var val) ...) expr ...)
+     ((lambda (var ...) expr ...) val ...))))
+#|
+(define-syntax let*
+  (syntax-rules ()
+    ((let* () body1 body2 ...)
+     (let () body1 body2 ...))
+    ((let* ((name1 val1) (name2 val2) ...) body1 body2 ...)
+     (let ((name1 val1))
+       (let* ((name2 val2) ...)
+         body1 body2 ...)))))
+|#
+(define-syntax my-let*
+  (syntax-rules ()
+    ((my-let* () expr ...)
+     (let () expr ...)) 
+    ((my-let* ((var1 val1) (var2 val2) ...) expr1 expr2 ...)
+     (let ((name1 val1))
+       (let* ((name2 val2) ...) expr1 expr2 ...)))))
+#|
+(define-syntax-rule (let ((id val) ...) body ...)
+  ((lambda (id ...) body ...) val ...))
+|#
+#|
 (define-syntax my-let
   (syntax-rules ()
     ((my-let ((var val)) expr)
      ((lambda (var)expr)val))
     ((my-let ((var val) . (avar aval)) expr)
      ((lambda (var)expr)val))))
+(define-syntax res-let
+  (syntax-rules (result:)
+    ((res-let result: vars vals ((var val)) expr)
+     (begin (append vars (list (quote var)))
+            (append vals (list val))
+            ((lambda(vars)expr)vals)))
+    ((res-let result: vars vals ((var val) . (avar aval)) expr)
+     (begin (append vars (list var))
+            (append vals (list val))
+            (res-let result: vars vals (avar aval) expr)))))
 
+(define-syntax my-let*
+  (syntax-rules ()
+    ((my-let ((var val)) expr)
+     ((lambda (var)expr)val))
+    ((my-let ((var val) . (avar aval)) expr)
+     ((lambda (var)expr)val))))
+|#
 ;;6
 ;;6.1
 (define-syntax when
@@ -148,12 +217,53 @@
 
 (define-syntax while
   (syntax-rules ()
+    ((while condition expr)
+     (let ((do expr))
+       (begin 
+         (when condition (while condition expr))
+         (write x))))
     ((while condition . expr)
      (if condition
          (begin (begin . expr)
                 (while condition . expr))))))
+#|
+(letrec ((iter (lambda (i)
+                 (if (= i 10)
+                     '()
+                     (cons i (iter (+ i 1)))))))
+  (iter 0))
+|#
+;;6.4
+(define-syntax repeat
+  (syntax-rules (until)
+    ((repeat (x) until condition)
+     '())
+    ((repeat (x . xs) until condition)
+     '())))
+     
+;;6.5
 
+(define-syntax cout
+  (syntax-rules (<<)
+    ((cout << x)
+     (cond ((equal? (quote x) '<<) (begin (display " ")))
+           ((equal? (quote x) 'endl) (begin (newline)))
+           (else (display x))))
+    ((cout << x . xs)
+     (cond ;((equal?  (quote x) '<<) (begin (display " ") (cout << (cdr xs))))
+       ((equal?  (quote x) 'endl) (begin (newline) (cout << (cdr xs))))
+       (else (begin (display x) (display " ") (cout << xs)))))))
 
+#|
+(define-syntax <<
+  (syntax-rules (cout)
+    ((cout << x)
+     (<< x))
+    ((<< x)
+     (if (equal? x 'endl)
+         (newline)
+         (display x)))))
+|#
 
 
 
