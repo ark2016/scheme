@@ -1,200 +1,184 @@
-;;
-(define counter 0)
-(define(next)
-  (set! counter (+ 1 counter))
-  counter)
-(define (signum x)
-  (cond
-    ((< x 0) -1)
-    ((= x 0)  1) ; Ошибка здесь!
-    (else     1)))
-;;1
-(define-syntax trace-ex
-  (syntax-rules ()
-    ((trace-ex expr)
-     (begin (write 'expr)
-            (display " => ")
-            (let ((x expr))
-              (write x)
-              (newline)
-              x)))))
-;;2 run-test принимает только 1 переменную тест
-(define (run-test arr)
-  (let ((expr-res (eval (car arr) (interaction-environment)))
-        (value (car(cdr arr)))
-        (expr (car arr)))
-    (if (equal? expr-res value)
-        (begin
-          (write expr)
-          (display " ok")
-          (newline))
-        (begin
-          (write expr)
-          (display " FAIL")
-          (newline)
-          (display "  Expected:")
-          (write value)
-          (newline)
-          (display "  Returned:")
-          (write expr-res)
-          (newline)))
-    (equal? expr-res value)))
-(define (run-tests arr)
-  (or (null? arr)
-      (if (run-test (car arr))
-          (run-tests (cdr arr))
-          (begin
-            (run-tests (cdr arr))
-            #f))))
-(define-syntax test
-  (syntax-rules ()
-    ((test expr res)
-     (list (quote expr) res))))
 #|
-(define (signum x)
-  (cond
-    ((< x 0) -1)
-    ((= x 0)  1) ; Ошибка здесь!
-    (else     1)))
-(define the-tests
-  (list (test (signum -2) -1)
-        (test (signum  0)  0)
-        (test (signum  2)  1)))
-(run-tests the-tests) ->
+(define (REPL)
+  (let* ((e (read))
+         (v (eval e (interaction-environement)))
+         (_ (print v)))
+    (REPL)))
+|#
+;;1
+(define exit #f)
 
-(signum -2) ok
-(signum 0) FAIL
-  Expected:0
-  Returned:1
-(signum 2) ok
-#f
+(define (use-assertions)
+  (call-with-current-continuation
+   (lambda (now)(set! exit now))))
 
+(define (work arr)
+  (let ((dis (car arr))
+        (res (car(cdr arr))))
+    (cond ((not res) (display "FAILED: ")
+                     (write dis)
+                     (newline)
+                     (exit)))))
+(define-syntax assert
+  (syntax-rules ()
+    ((assert expr)
+     (work (list (quote expr) expr)))))
+(use-assertions)
+;;2
+
+(define (save-data str way)
+  (with-output-to-file way (lambda () (write str))))
+
+(define (load-data way)
+  (call-with-input-file way (lambda (port) (read port))))
+
+(define (count-string-in-file way)
+  (define (loop way res chek)
+    (let ((x (read-char way)))
+      (if (not (eof-object? x))
+          (if (and (equal? chek "") (equal? x #\newline))
+              (loop way res "")
+              (if (equal? x #\newline)
+                  (loop way (+ res 1) x)
+                  (loop way res x)))
+          res)))
+  (call-with-input-file way
+    (lambda (port) (write (loop port 0 "")))))
+#|
+(define (count-string-in-file way)
+  (define (loop way res)
+    (let ((x (read way)))
+      (if (not (eof-object? x))
+          (if (equal? x "")
+              (loop way res)
+              (loop way (+ res 1)))
+          res)))
+  (call-with-input-file way
+    (lambda (port) (write (loop port 0)))))
 |#
 ;;3
-(define (ref arg . index-new)
-  (define (transform-in-list arg)
-    (if (string? arg)
-        (string->list arg)
-        (if (vector? arg)
-            (vector->list arg)
-            arg)))
-  (define (func-list->type? arg)
-    (if (string? arg)
-        (lambda (x) (list->string x))
-        (if (vector? arg)
-            (lambda (x) (list->vector x))
-            (lambda (x . xs) (car(append (list x) xs))))))
-  (define (ref-1 xs index)
-    (if (> index (- (length xs) 1))
-        (< index (length xs));#f
-        (if (= index 0)
-            (car xs)
-            (ref-1 (cdr xs) (- index 1)))))
-  (define (ref-2 xs index replace list->old-type res)
-    (if (> index (- (length xs) 1))
-        (if (> index (length xs))
-            (< index (length xs))
-            (list->old-type (append xs (list replace))))
-        (if (= index 0)
-            (list->old-type (append res (list replace)  xs))
-            (ref-2 (cdr xs) (- index 1) replace list->old-type (append res (list (car xs)))))))
-  (cond ((and (not (and (not (list? arg))
-                        (not (vector? arg))
-                        (not (string? arg))))
-              ( = (length index-new) 1))
-         (ref-1 (transform-in-list arg) (car index-new)))
-        ((and (not (and (not (list? arg)) (not (vector? arg)) (not (string? arg)))) (not ( = (length index-new) 1))
-              (or (list? arg) (and (string? arg) (char? (car (cdr index-new)))) (vector? arg)))
-         (ref-2 (transform-in-list arg) (car index-new) (car (cdr index-new)) (func-list->type? arg) '()))
-        (else #f)))
-#|
-  (if (and (not (list? arg)) (not (vector? arg)) (not (string? arg)))
-      #f
-      (if ( = (length index-new) 1)
-          (ref-1 (transform-in-list arg) (car index-new))
-          (if (pair? index-new)
-              (if (not (or (list? arg) (and (string? arg) (char? (car (cdr index-new)))) (vector? arg)))
-                  #f
-                  (ref-2 (transform-in-list arg) (car index-new) (car (cdr index-new)) (func-list->type? arg) '()))
-              #f))))
-|#
-#|
-(ref '(1 2 3) 1) ⇒ 2
-(ref #(1 2 3) 1) ⇒ 2
-(ref "123" 1)    ⇒ #\2
-(ref "123" 3)    ⇒ #f
-
-(ref '(1 2 3) 1 0)   ⇒ (1 0 2 3)
-(ref #(1 2 3) 1 0)   ⇒ #(1 0 2 3)
-(ref #(1 2 3) 1 #\0) ⇒ #(1 #\0 2 3)
-(ref "123" 1 #\0)    ⇒ "1023"
-(ref "123" 1 0)      ⇒ #f
-(ref "123" 3 #\4)    ⇒ "1234"
-(ref "123" 5 #\4)    ⇒ #f
-|#
+(define t-memo
+  (let ((known-results '()))
+    (lambda (n)
+      (let* ((arg (list n))
+             (res (assoc arg known-results)))
+        (if res
+            (cadr res)
+            (let ((res (cond ((<= n 1) 0)
+                             ((= n 2) 1)
+                             (else (+ (t-memo (- n 1)) (t-memo (- n 2)) (t-memo (- n 3)))))))
+              (set! known-results (cons (list arg res) known-results))
+              res))))))
+      
+(define (t n)
+  (cond ((<= n 1) 0)
+        ((= n 2) 1)
+        (else (+ (t (- n 1)) (t (- n 2)) (t (- n 3))))))
 ;;4
-(define (factorize expr)
-  (define (parsed signum power x y)
-    (if (equal? signum '+)
-        (list '+ (list 'expt x '3) (list '* '3  (list 'expt x '2) y)
-              (list '* '3 x (list 'expt y '2)) (list 'expt y '3))
-        (if (equal? power 2)
-            (list '* (list '- x y) (list '+ x y))
-            (list '+ (list 'expt x '3) (list '* '3  (list 'expt x '2) y '-1)
-                  (list '* '3 x (list 'expt y '2)) (list '* (list 'expt y '3) '-1)))))
-  (parsed (car expr) (car (cddr (car(cddr expr)))) (car (cdr (car (cdr expr)))) (car (cdr(car (cddr expr))))))
-#|
-(factorize '(- (expt x 2) (expt y 2))) 
-  ⇒ (* (- x y) (+ x y))
-  
-(factorize '(- (expt (+ first 1) 2) (expt (- second 1) 2)))
-  ⇒ (* (- (+ first 1) (- second 1))
-         (+ (+ first 1) (- second 1)))
-             
-(eval (list (list 'lambda 
-                      '(x y) 
-                      (factorize '(- (expt x 2) (expt y 2))))
-                1 2)
-          (interaction-environment))
-  ⇒ -3
-|#
 
-#|
-(define (if-mistake expr arg)
-  (display "fail")
-  (newline)
-  (display "Expected:")
-  (write arg)
-  (newline)
-  (display "Returned:")
-  (if (procedure? expr)
-      (write (expr arg))
-      (write expr)))
-(define (ok)
-  (display " ok")
-  (newline))
-(define (run-test expr arg)
-  (write 'expr)
-  (if (procedure? expr)
-      (if (eqv? (expr arg) arg)
-          (ok)
-          (if-mistake expr arg))
-      (if (eqv? expr arg)
-          (ok)
-          (if-mistake expr arg))))
-(define (run-tests expr args)
-  (map (lambda (x) (run-test expr x)) args))
-#|
-  (set! counter 5)
-(define next-tests
-    (list (test (next) 6)
-          (test (next) 8)
-          (test (next) 8)))
-|#     
-(define-syntax test
+(define-syntax my-if
   (syntax-rules ()
-    ((test expr args)
-     (begin (if (list? args)
-                (run-tests expr (list args))
-                (run-test expr args))))))
+    ((my-if condition one)
+     (let ((one-promise (delay one)))
+       (force (and condition  one-promise))))
+    ((my-if condition one two)
+     (let ((one-promise (delay one))
+           (two-promise (delay two)))
+       (force (or (and condition one-promise) two-promise))))))
+#|
+(define-syntax my-if*
+  (syntax-rules ()
+    ((my-if* condition one)
+     (or (and condition one) #f))
+    ((my-if* condition one two)
+     (or (and condition one) two))))
 |#
+;;5
+(define-syntax my-let
+  (syntax-rules ()
+    ((my-let ((var val) ...) expr ...)
+     ((lambda (var ...) expr ...) val ...))))
+
+(define-syntax my-let*
+  (syntax-rules ()
+    ((my-let* () expr ...)
+     (my-let () expr ...))
+    ((my-let* ((var1 val1) (var2 val2) ...) expr1 ...)
+     (my-let ((var1 val1))
+             (my-let* ((var2 val2) ...)
+                      expr1 ...)))))
+;;6
+;;6.1
+(define-syntax when
+  (syntax-rules ()
+    ((when condition one-action) 
+     (if (and condition (procedure? one-action ))
+         (one-action)))
+    ((when condition action . actions)
+     (if condition
+         (let ((x action))
+           (when condition . actions))))))
+;
+(define-syntax unless
+  (syntax-rules ()
+    ((unless condition one-action) 
+     (if (and (not condition) (procedure? one-action ))
+         (one-action)))
+    ((unless condition action . actions)
+     (if (not condition)
+         (let ((x action))
+           (when condition . actions))))))
+;;6.2
+(define-syntax for
+  (syntax-rules (in as)
+    ((for i in xs expr ...)
+     (begin (define (loop xs*)
+              (when (not (null? xs*))
+                (let ((i (car xs*)))
+                  (begin expr ... (loop (cdr xs*))))))
+            (loop xs)))
+    ((for xs as i expr ...)
+     (for i in xs expr ...))))
+;;6.3
+(define-syntax while
+  (syntax-rules ()
+    ((while condition expr ...)
+     (letrec ((function (lambda (condition*)
+                      (when condition*
+                          (begin expr ... (function condition))))))
+       (function condition)))))
+
+;;6.4
+(define-syntax repeat
+  (syntax-rules (until)
+    ((repeat expr ... until condition)
+     (while (not condition) expr ...))))
+#|
+(define-syntax repeat
+  (syntax-rules (until)
+    ((_ expr1 ... until cond?)
+     (letrec ((func (lambda (cnd)
+                      (if (not cnd)
+                          (let () expr1 ... (func cond?))))))
+       (func cond?)))))
+|#
+#|
+(define-syntax repeat
+  (syntax-rules (until)
+    ((repeat expr ... until condition)
+     (letrec ((function (lambda (condition*)
+                      (when (not condition*)
+                          (begin expr ... (function condition))))))
+       (function condition)))))
+|#
+;;6.5
+(define-syntax cout
+  (syntax-rules()
+    ((cout . exprs)
+     (begin
+       (define (loop expr)
+         (cond ((or (null? expr) (= 1 (length expr))) (display ""))
+               ((equal? (car expr) '<<) (loop (cdr expr)))
+               ((equal? (car expr) 'endl) (newline) (cdr expr))
+               (else (display (car expr)) (loop (cdr expr)))))
+       (loop 'exprs)))))
