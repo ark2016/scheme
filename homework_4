@@ -6,7 +6,9 @@
              (res (assoc arg known-results)))
         (if res
             (cadr res)
-            (let ((res (! n)))
+            (let ((res (if (<= n 1)
+                           1
+                           (* n (memoized-factorial (- n 1))))))
               (set! known-results (cons (list arg res) known-results))
               res))))))
 
@@ -14,6 +16,7 @@
   (if (<= n 1)
       1
       (* n (! (- n 1)))))
+
 ;;2
 (define-syntax lazy-cons
   (syntax-rules ()
@@ -22,41 +25,58 @@
        (cons a b-promise)))))
 
 (define (lazy-car p)
-  (force (car p)))
+  ;(force (car p)))
+  (car p))
 
 (define (lazy-cdr p)
   (force (cdr p)))
 
-(define (lazy-head* xs k)
-  (if (> k 0)
-      (lazy-head* (cons (lazy-car xs) (cdr xs)) (- k 1))
-      xs))
+(define (_lazy-cdr p)
+  (force (cadr p)))
 
 (define (lazy-head xs k)
   (define (loop xs k res)
-    (if (not (null? res))
-        (display  (car (force (car (cdr xs))))))
-    (newline)
     (if (> k 0)
-        (loop (force (car (cdr xs))) (- k 1) (append res (force (car (cdr xs)))))
-        ;        (loop (force (car (cdr xs))) (- k 1) (display (car(force (car(cdr xs))))))
-        ;        (loop (cdr xs) (- k 1) (append res (force (car (cdr xs)))))
+        (append res (list (car xs)) (loop (_lazy-cdr xs) (- k 1) res))
         res))
   (loop xs k '()))
-#|
-(define (lazy-head* xs k)
-  (if (> k 0)
-      (if (number? (car xs))
-          (
-      xs))
-|#
+
 (define (lazy-ref xs k)
   (if (= k 0)
-      (lazy-car xs)
-      (lazy-ref (cdr xs) (- k 1))))
+      (car xs)
+      (lazy-ref (_lazy-cdr xs) (- k 1))))
 
 (define (naturals start)
   (cons start (cons (delay (naturals (+ start 1))) '())))
+
+;;3
+(define (words-output-from-file way)
+  (define (loop way res chek)
+    (let ((x (read-char way)))
+      (if (eof-object? x)
+          res
+          (if (and (equal? chek "") (or (equal? x #\space) (equal? x #\newline)))
+              (loop way res "")
+              (if (equal? x #\space)
+                  (loop way (append res (list chek)) "")
+                  (loop way res (string-append chek (string x))))))))
+  (call-with-input-file way (lambda (port) (write (loop port '() "")))))
+;(words-output-from-file "homework_4_3_test")
+;("one" "two" "three" "four" "five" "six")
+
+;;4
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
