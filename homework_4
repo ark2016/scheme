@@ -65,6 +65,21 @@
 ;("one" "two" "three" "four" "five" "six")
 
 ;;4
+(define __eval__ (lambda (x) (eval x (interaction-environment))))
+
+(define (make-name2 part1 part2)
+  (string->symbol (string-append (symbol->string part1) (symbol->string part2))))
+
+(define (make-name2 part1 part2 part3)
+  (string->symbol (string-append (symbol->string part1) (symbol->string part2) (symbol->string part3))))
+
+(define-syntax define-struct
+  (syntax-rules ()
+    ((_ name (field-value ...))
+     (begin
+       (__eval__ (list 'define (make-name2 'make- (quote name)) (lambda (field-value ...) (list (quote name) (list (quote field-value) field-value) ...))))
+       (__eval__ (list 'define (make-name2 (quote name) '?) (lambda (xs) (and (list? xs) (not (null? xs))(equal? (quote name) (car xs))))));))))
+       (__eval__ (list 'define (make-name (
 
 
 
