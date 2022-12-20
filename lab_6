@@ -29,6 +29,13 @@
 
 (define (scan-frac str)
   (define (loop arr up down flag/ sgn)
+    #|
+    (write "     ")
+    (display up)
+    (write "/")
+    (display down)
+    (newline)
+    |#
     (cond ((null? arr) (/ up down sgn))
           ((equal? (car arr) #\/) (loop (cdr arr) up down 1 sgn))
           ((equal? (car arr) #\+) (loop (cdr arr) up down flag/ +1))
@@ -37,13 +44,28 @@
           (else (loop (cdr arr) up (+ (* down 10) (char->digit (car arr))) flag/ sgn))))
   (and (check-frac str) (loop (string->list str) 0 0 0 1)))
 
+(define (search-f res arr)
+  (if (null? arr)
+      res
+      (if (car arr)
+          (search-f res (cdr arr))
+          #f)))
+      
+
 (define (scan-many-fracs str)
-  (define (loop arr frac)
-    (cond ((null? arr))
-          ((equal? (car arr) #\\) (scan-frac (list->string frac)) (loop (cddr arr '())))
-          ((equal? (car arr) #\space) (scan-frac (list->string frac)) (loop (cdr arr)'()))
-          (else (loop (cdr arr) (append frac (list (car arr)))))))
-  (and (loop (string->list str) '())))
+  (define skip '(#\space #\tab #\newline))
+  (define (loop arr frac res)
+    (cond ((and (not (null? frac)) (null? arr)) (append res (list (scan-frac (list->string frac)))))
+          ((null? arr)res)
+          ;((equal? (car arr) #\\) (scan-frac (list->string frac)) (loop (cddr arr '())))
+          ;((equal? (car arr) #\space) (scan-frac (list->string frac)) (loop (cdr arr)'()))
+          ((and (not (null? frac)) (memq (car arr) skip));(write "|")(display (scan-frac (list->string frac)))
+           (loop (cdr arr)'() (append res (list (scan-frac (list->string frac))))))
+          ((memq (car arr) skip) (loop (cdr arr) frac res))
+          (else ;(display (car arr))(newline)
+           (loop (cdr arr) (append frac (list (car arr))) res))))
+  (let ((arr (loop (string->list str) '() '())))
+    (search-f arr arr)))
 
 
 ;;2
