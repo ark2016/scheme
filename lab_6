@@ -1,4 +1,5 @@
 (define (++ x) (+ x 1))
+(define (-- x) (- x 1))
 (define-syntax trace-ex
   (syntax-rules ()
     ((trace-ex expr)
@@ -79,13 +80,47 @@
 (define (parse vec)
   ;(parce (vector->list vec) (list dict '())))
   (list dict (parce (vector->list vec) '())))
+;;define end -> #f
+;;if define endif end -> #f
+;; if define end  endif -> #f
 
 (define (parce-define arr stack-return)
-  (let ((x (car arr)))
-    (if (equal? x 'end)
-        (set! dict (cons  (cons  (car stack-return)  (list (cdr stack-return))) dict))
-        (parce-define (cdr arr) (append stack-return (list x))))))
+  (if (null? arr)
+      '(#f)
+      (let ((x (car arr)))
+        (if (equal? x 'end)
+            (begin (set! dict (cons  (cons  (car stack-return)  (list (cdr stack-return))) dict))
+                   (cdr arr))
+            (parce-define (cdr arr) (append stack-return (list x)))))))
 
+(define (parce-if arr flag-if res)
+  (if (null? arr)
+      '(#f)
+      (cond((and (equal? x 'endif) (= flag-if 0)) res)
+           ((equal? x 'endif) (parce-endif (cdr arr) (++ flag-if)))
+           ((equal? x 'if) (parce-endif (cdr arr) (-- flag-if)) (append res (list 'if parce-endif((cdr arr) 0 '()))))
+           (else (parce-endif (cdr arr) flag-if (append res (list x)))))))
+
+(define (parce-endif arr)
+  (if (null? arr)
+      '(#f)
+      (cond((and (equal? x 'endif) (= flag-if 0)) arr)
+           ((equal? x 'endif) (parce-endif (cdr arr) (++ flag-if)))
+           ((equal? x 'if) (parce-endif (cdr arr) (-- flag-if)))
+           (else (parce-endif (cdr arr) flag-if )))))
+  
+
+(define (parce arr res)
+  (if (null? arr)
+      res
+      (let ((fnel (car arr)))
+        (cond ((member fnel funcs-arr) (parce (cdr arr) (append res (list fnel))))
+              ((equal? fnel 'define) (parce (parce-define arr '()) res))
+              ((equal? fnel 'if) (parce (parce-endif arr) (append res (list parce-if arr))))
+              ((number? fnel)(parce (cdr arr) (append res (list fnel))))
+              ((memq fnel dict) (parce (cdr arr) (append res (list fnel))))
+              (else #f)))))
+#|
 (define (parce arr res)
   (if (null? arr)
       res
@@ -97,6 +132,7 @@
              ((equal? fnel 'end) (parce (cdr arr) res))
              ((equal? fnel 'endif) (parce (cdr arr) res))
              (else (write fnel)(display " ")(set! x (++ x)) (write x)(newline) (parce (cdr arr) (append res (list fnel))))))))
+|#
 #|
 
 (define (scan-frac str)
