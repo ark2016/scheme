@@ -9,6 +9,43 @@
               (write x)
               (newline)
               x)))))
+
+(define-syntax test
+  (syntax-rules (cons)
+    ((_ (fun  arg) res) (list 'fun fun (list arg) res))
+    ((_ (fun arg . args) res) (list 'fun fun (cons arg (list . args)) res ))))
+
+(define (run-test test)
+  (define (write-list xs)
+    (and (not (null? xs))
+         (write (car xs))
+         (display " ")
+         (write-list (cdr xs))))
+  (begin
+    (display "(")
+    (display (car test))
+    (display " ")
+    (write-list (caddr test))
+    (display ") ")
+    (let ((val (apply (cadr test) (caddr test)))
+          (res (cadddr test)))
+      (if (equal? val res)
+          (display "ok\n")
+          (begin (display "FAIL\n")
+                 (display "\tExpected: ")
+                 (display res)
+                 (display "\n\tReturned: ")
+                 (display val)
+                 (newline)))
+      (equal? val res))))
+
+(define (run-tests test-s)
+  (define (loop ind test-s)
+    (if (null? test-s)
+        ind
+        (loop (and (run-test (car test-s)) ind) (cdr test-s))))
+  (loop #t test-s))
+
 ;;1
 (define (check-frac str);> (check-frac "/1") #t not
   (define check-frac-arr (string->list "1234567890-/+"))
@@ -70,88 +107,129 @@
 
 
 ;;2
-(define __eval__ (lambda (x) (eval x (interaction-environment))))
-;(define funcs-arr '('+ '- '* 'mod 'neg '= '< '> 'not 'and 'or 'drop 'swap 'dup 'over 'rot 'depth 'if))
-(define funcs-arr '(+ - * mod neg = < > not and or drop swap dup over rot depth))
-
-(define dict '())
-
-
 (define (parse vec)
-  ;(parce (vector->list vec) (list dict '())))
-  (let ((parsed (parce (vector->list vec) '())))
-    (if (and (cdr parsed) (not (equal? (cdr parsed) '((if #f)))))
-        (list dict parsed)
-        #f)))
-    
-  ;(begin (parce (vector->list vec) '())
-   ;      (list dict (parce (vector->list vec) '()))));подумать как  сделать один вызов функции
-;;define end -> #f
-;;if define endif end -> #f
-;; if define end  endif -> #f
-(define (parce-define arr stack-return)
+  (define __eval__ (lambda (x) (eval x (interaction-environment))))
+  ;(define funcs-arr '('+ '- '* 'mod 'neg '= '< '> 'not 'and 'or 'drop 'swap 'dup 'over 'rot 'depth 'if))
+  (define funcs-arr '(+ - * mod neg = < > not and or drop swap dup over rot depth))
+
+  (define dict '())
+
+
+  (define (parse* vec)
+    (if (null? (vector->list vec))
+        '(()())
+        (let ((parsed (parce (vector->list vec) '())))
+          (if parsed
+              (if (equal? parsed '((if #f)))
+                  #f
+                  (list dict parsed))
+              parsed))))
+  
+  (define (parce-define arr stack-return)
+    (if (null? arr)
+        #f
+        (if (equal? (car arr) 'end)
+            (begin (set! dict (cons  (cons (car stack-return) (list (cdr stack-return)))    dict))
+                   (cdr arr))
+            (parce-define (cdr arr) (append  stack-return (list (car arr)))))))
   #|
-  (display "  | arr ")
-  (write arr)
-  (newline)
-  (display "dict ")
-  (display dict)
-  (newline)
-  (display "stack-reurn ")
-  (write stack-return)
-  (newline)
-  |#
-  (if (equal? (car arr) 'end)
-      (begin (set! dict (cons  (cons (car stack-return) (list (cdr stack-return)))    dict))
-             (cdr arr))
-      (parce-define (cdr arr) (append  stack-return (list (car arr))))))
-#|
 (define (parce-if arr res)
   (if (equal? (car arr) 'endif)
       res
       (parce-if (cdr arr) (cons (car arr) res))))
 |#
-(define (parce-if arr res)
-  (cond ((null? arr) #f);; arr -> #f
-        ((equal? (car arr) 'define) #f)
-        ((equal? (car arr) 'if)
-         (let ((add-if (parce-if (cdr arr) '())))
-           (parce-if (parce-endif (cdr arr)) (append res (list (list 'if add-if))))))
-        ((equal? (car arr) 'endif) res)
-        (else (parce-if (cdr arr) (append res (list (car arr)))))))
-#|
+  (define (parce-if arr res)
+    (cond ((null? arr) #f);; arr -> #f
+          ((equal? (car arr) 'define) #f)
+          ((equal? (car arr) 'if)
+           (let ((add-if (parce-if (cdr arr) '())))
+             (parce-if (parce-endif (cdr arr)) (append res (list (list 'if add-if))))))
+          ((equal? (car arr) 'endif) res)
+          (else (parce-if (cdr arr) (append res (list (car arr)))))))
+  #|
 (define (parce-endif arr)
   (if (equal? (car arr) 'endif)
       (cdr arr)
       (parce-endif (cdr arr))))
 |#
-(define (parce-endif arr)
-  (cond ((null? arr) '())
-        ((equal? (car arr) 'if) (parce-endif (parce-endif (cdr arr))))
-        ((equal? (car arr) 'endif);(display arr)(newline)
-         (cdr arr))
-        (else (parce-endif (cdr arr)))))
+  (define (parce-endif arr)
+    (cond ((null? arr) '())
+          ((equal? (car arr) 'if) (parce-endif (parce-endif (cdr arr))))
+          ((equal? (car arr) 'endif);(display arr)(newline)
+           (cdr arr))
+          (else (parce-endif (cdr arr)))))
 
-(define (parce arr res)
-  ;(write res)
-  ;(newline)
-  (if (null? arr)
-      res
-      (let ((fnel (car arr)))
-        (cond ((member fnel funcs-arr) (parce (cdr arr) (append res (list fnel))))
-              ((equal? fnel 'define);(display " define ")
-               (if (> (length arr) 3)
-                (parce (parce-define (cdr arr) '()) res)
-                #f))
-              ;((equal? fnel 'if) (display " if ") (parce (parce-endif arr 0) (append res (list parce-if (cdr arr) 0 '()))))
-              ((equal? fnel 'if) ;(display " if ")
-               (let ((add-if (parce-if (cdr arr) '())))
-                 (parce (parce-endif arr) (append res (list (list 'if add-if))))))
-              ((number? fnel) (parce (cdr arr) (append res (list fnel))))
-              ((equal? fnel 'end) #f)
-              ((equal? fnel 'endif) #f)
-              ((or (equal? fnel 'x) (assoc fnel dict)) (parce (cdr arr) (append res (list fnel))));;x можнo?
-              (else (write fnel) (newline) #f)))))
+  (define (parce arr res)
+    
+    ;(write res)
+    ;(newline)
+    (if (not arr)
+        arr
+        (if (null? arr)
+            res
+            (let ((fnel (car arr)))
+              (cond ((member fnel funcs-arr) (parce (cdr arr) (append res (list fnel))))
+                    ((equal? fnel 'define);(display " define ")
+                     (cond ((< (length arr) 3) #f)
+                           ((> (length arr) 3) (parce (parce-define (cdr arr) '()) res))
+                           ((and (not (equal? (cadr arr) 'endif)) (equal? (caddr arr) 'end)) (set! dict (cons  (cons (cadr arr) '(()))    dict)) (parce (cdddr arr) res))
+                           (else #f)))
+                    ;((equal? fnel 'if) (display " if ") (parce (parce-endif arr 0) (append res (list parce-if (cdr arr) 0 '()))))
+                    ((equal? fnel 'if) ;(display " if ")
+                     (let ((add-if (parce-if (cdr arr) '())))
+                       (parce (parce-endif arr) (append res (list (list 'if add-if))))))
+                    ((number? fnel) (parce (cdr arr) (append res (list fnel))))
+                    ((equal? fnel 'end) #f)
+                    ((equal? fnel 'endif) #f)
+                    ((assoc fnel dict) (parce (cdr arr) (append res (list fnel))));;x можнo?
+                    (else ;(write fnel) (newline)
+                     (parce (cdr arr) (append res (list fnel)))))))))
+  (parse* vec))
+(parse #(x dup 0 swap if drop -1 endif 1))
+
+(define second-tests
+  (list (test (parse #(1 2 +)) '(() (1 2 +)))
+
+        (test (parse #(x dup 0 swap if drop -1 endif))
+              '(() (x dup 0 swap (if (drop -1)))))
+        (test (parse #( define -- 1 - end
+                         define =0? dup 0 = end
+                         define =1? dup 1 = end
+                         define factorial
+                         =0? if drop 1 exit endif
+                         =1? if drop 1 exit endif
+                         dup --
+                         factorial
+                         *
+                         end
+                         0 factorial
+                         1 factorial
+                         2 factorial
+                         3 factorial
+                         4 factorial )) '(((-- (1 -))
+                                           (=0? (dup 0 =))
+                                           (=1? (dup 1 =))
+                                           (factorial
+                                            (=0? (if (drop 1 exit)) =1? (if (drop 1 exit)) dup -- factorial *)))
+                                          (0 factorial 1 factorial 2 factorial 3 factorial 4 factorial)))
+        (test (parse #(define word w1 w2 w3)) #f)
+        (test (parse #(   define =0? dup 0 = end
+                           define gcd
+                           =0? if drop exit endif
+                           swap over mod
+                           gcd
+                           end
+                           90 99 gcd
+                           234 8100 gcd    )) '(((=0? (dup 0 =)) (gcd (=0? (if (drop exit)) swap over mod gcd))) (90 99 gcd 234 8100 gcd)))
+        (test (parse #(if define a end endif)) #f)
+        (test (parse #(define a define b 1 end end)) #f)
+        (test (parse #(define a if end endif)) #f)
+        (test (parse #(define end)) #f)
+        (test (parse #()) '(()()))
+        (test (parse #(define endif end)) #f)
+        (test (parse #(define a)) #f)
+        ))
+(run-tests second-tests)
 
 #|
 
